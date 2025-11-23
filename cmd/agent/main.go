@@ -154,8 +154,6 @@ func preRun(configPath string) error {
 	if configPath == "" {
 		configPath = defaultConfigPath
 	}
-	// init
-	setEnv()
 	
 	// windows环境处理
 	if runtime.GOOS == "windows" {
@@ -179,10 +177,11 @@ func preRun(configPath string) error {
 	if err := agentConfig.Read(configPath); err != nil {
 		return fmt.Errorf("init config failed: %v", err)
 	}
-
+	
 	monitor.InitConfig(&agentConfig)
 	monitor.CustomEndpoints = agentConfig.CustomIPApi
-
+	// init
+	setEnv()
 	return nil
 }
 
