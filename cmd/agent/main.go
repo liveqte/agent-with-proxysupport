@@ -89,33 +89,42 @@ const (
 )
 
 func setEnv() {
-	resolver.SetDefaultScheme("passthrough")
-	net.DefaultResolver.PreferGo = true // 使用 Go 内置的 DNS 解析器解析域名
-	net.DefaultResolver.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
-		d := net.Dialer{
-			Timeout: time.Second * 5,
-		}
-		dnsServers := util.DNSServersAll
-		if len(agentConfig.DNS) > 0 {
-			dnsServers = agentConfig.DNS
-		}
-		var conn net.Conn
-		var err error
-		for _, server := range util.RangeRnd(dnsServers) {
-			conn, err = d.DialContext(ctx, "udp", server)
-			if err == nil {
-				return conn, nil
-			}
-		}
-		return nil, err
-	}
-	headers := util.BrowserHeaders()
-	http.DefaultClient.Timeout = time.Second * 30
-	httpClient.Transport = utlsx.NewUTLSHTTPRoundTripperWithProxy(
-		utls.HelloChrome_Auto, new(utls.Config),
-		http.DefaultTransport, nil, headers,
-	)
+    resolver.SetDefaultScheme("passthrough")
+    net.DefaultResolver.PreferGo = true
+    net.DefaultResolver.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+        d := net.Dialer{Timeout: time.Second * 5}
+        dnsServers := util.DNSServersAll
+        if len(agentConfig.DNS) > 0 {
+            dnsServers = agentConfig.DNS
+        }
+        var conn net.Conn
+        var err error
+        for _, server := range util.RangeRnd(dnsServers) {
+            conn, err = d.DialContext(ctx, "udp", server)
+            if err == nil {
+                return conn, nil
+            }
+        }
+        return nil, err
+    }
+
+    var proxyURL *url.URL
+    if agentConfig.Proxy != "" {
+        p, err := url.Parse(agentConfig.Proxy)
+        if err == nil {
+            proxyURL = p
+        } else {
+            logger.Printf("Invalid proxy URL: %s", agentConfig.Proxy)
+        }
+    }
+    headers := util.BrowserHeaders()
+    httpClient.Timeout = time.Second * 30
+    httpClient.Transport = utlsx.NewUTLSHTTPRoundTripperWithProxy(
+        utls.HelloChrome_Auto, new(utls.Config),
+        http.DefaultTransport, proxyURL, headers,
+    )
 }
+
 
 func loadDefaultConfigPath() string {
 	var err error
