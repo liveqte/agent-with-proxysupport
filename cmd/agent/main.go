@@ -91,36 +91,58 @@ const (
 
 func setEnv() {
     resolver.SetDefaultScheme("passthrough")
-    net.DefaultResolver.PreferGo = true
-    net.DefaultResolver.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
-        d := net.Dialer{Timeout: time.Second * 5}
-        dnsServers := util.DNSServersAll
-        if len(agentConfig.DNS) > 0 {
-            dnsServers = agentConfig.DNS
-        }
-        var conn net.Conn
-        var err error
-        for _, server := range util.RangeRnd(dnsServers) {
-            conn, err = d.DialContext(ctx, "udp", server)
-            if err == nil {
-                return conn, nil
-            }
-        }
-        return nil, err
-    }
-
+    
     var proxyURL *url.URL
+    var proxyDialer proxy.Dialer
+    
     if agentConfig.Proxy != "" {
         logger.Printf("Proxy field detected in config: %s", agentConfig.Proxy)
         p, err := url.Parse(agentConfig.Proxy)
         if err == nil {
             proxyURL = p
             logger.Printf("Proxy URL parsed successfully: scheme=%s host=%s", proxyURL.Scheme, proxyURL.Host)
+            
+            systemDialer := &net.Dialer{Timeout: time.Second * 5}
+            proxyDialer, err = proxy.FromURL(proxyURL, systemDialer)
+            if err != nil {
+                logger.Printf("Failed to create proxy dialer: %v", err)
+                proxyDialer = nil
+            } else {
+                logger.Printf("Proxy dialer created successfully")
+            }
         } else {
             logger.Printf("Invalid proxy URL: %s (error: %v)", agentConfig.Proxy, err)
         }
     } else {
         logger.Printf("No proxy configured, using direct connection")
+    }
+
+    net.DefaultResolver.PreferGo = true
+    if proxyURL != nil && proxyURL.Scheme == "socks5h" && proxyDialer != nil {
+        // 对于 socks5h，DNS 查询也走代理
+        logger.Printf("Using SOCKS5h proxy for DNS resolution")
+        net.DefaultResolver.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+            logger.Printf("DNS lookup through SOCKS5h proxy: %s %s", network, address)
+            return proxyDialer.Dial(network, address)
+        }
+    } else {
+        // 其他情况使用原有的 DNS 逻辑
+        net.DefaultResolver.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+            d := net.Dialer{Timeout: time.Second * 5}
+            dnsServers := util.DNSServersAll
+            if len(agentConfig.DNS) > 0 {
+                dnsServers = agentConfig.DNS
+            }
+            var conn net.Conn
+            var err error
+            for _, server := range util.RangeRnd(dnsServers) {
+                conn, err = d.DialContext(ctx, "udp", server)
+                if err == nil {
+                    return conn, nil
+                }
+            }
+            return nil, err
+        }
     }
 
     headers := util.BrowserHeaders()
@@ -132,12 +154,12 @@ func setEnv() {
 
     if proxyURL != nil {
         logger.Printf("HTTP client transport initialized with proxy: %s", proxyURL.String())
+        // 测试代理连接
+        go testProxyConnection()
     } else {
         logger.Printf("HTTP client transport initialized without proxy")
     }
 }
-
-
 
 func loadDefaultConfigPath() string {
 	var err error
