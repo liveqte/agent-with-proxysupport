@@ -43,10 +43,11 @@ type AgentConfig struct {
 	IPReportPeriod              uint32          `koanf:"ip_report_period" json:"ip_report_period"`               // IP上报周期
 	SelfUpdatePeriod            uint32          `koanf:"self_update_period" json:"self_update_period"`           // 自动更新周期
 	CustomIPApi                 []string        `koanf:"custom_ip_api" json:"custom_ip_api,omitempty"`           // 自定义 IP API                      // 重载间隔
-
+	Proxy string `koanf:"proxy" json:"proxy"`
+	
 	k        *koanf.Koanf `json:"-"`
 	filePath string       `json:"-"`
-	Proxy string `koanf:"proxy" json:"proxy"`
+	
 }
 
 // Read 从给定的文件目录加载配置文件
@@ -84,7 +85,7 @@ func (c *AgentConfig) Read(path string) error {
 			return fmt.Errorf("generate UUID failed: %v", err)
 		}
 	}
-
+	fmt.Printf("Proxy config loaded: %s\n", c.Proxy)
 	return ValidateConfig(c, false)
 }
 
