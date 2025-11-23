@@ -149,13 +149,14 @@ func loadDefaultConfigPath() string {
 }
 
 func preRun(configPath string) error {
-	// init
-	setEnv()
+	
 
 	if configPath == "" {
 		configPath = defaultConfigPath
 	}
-
+	// init
+	setEnv()
+	
 	// windows环境处理
 	if runtime.GOOS == "windows" {
 		hostArch, err := host.KernelArch()
