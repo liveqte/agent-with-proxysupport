@@ -161,6 +161,18 @@ func setEnv() {
     }
 }
 
+func testProxyConnection() {
+    logger.Printf("Testing proxy connection...")
+    resp, err := httpClient.Get("http://httpbin.org/ip")
+    if err != nil {
+        logger.Printf("Proxy test failed: %v", err)
+        return
+    }
+    defer resp.Body.Close()
+    body, _ := io.ReadAll(resp.Body)
+    logger.Printf("Proxy test successful, response: %s", string(body))
+}
+
 func loadDefaultConfigPath() string {
 	var err error
 	executablePath, err = os.Executable()
