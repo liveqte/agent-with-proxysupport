@@ -46,6 +46,7 @@ type AgentConfig struct {
 
 	k        *koanf.Koanf `json:"-"`
 	filePath string       `json:"-"`
+	Proxy string `yaml:"proxy"`
 }
 
 // Read 从给定的文件目录加载配置文件
