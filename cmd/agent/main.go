@@ -111,20 +111,32 @@ func setEnv() {
 
     var proxyURL *url.URL
     if agentConfig.Proxy != "" {
+        logger.Printf("Proxy field detected in config: %s", agentConfig.Proxy)
         p, err := url.Parse(agentConfig.Proxy)
         if err == nil {
             proxyURL = p
+            logger.Printf("Proxy URL parsed successfully: scheme=%s host=%s", proxyURL.Scheme, proxyURL.Host)
         } else {
-            logger.Printf("Invalid proxy URL: %s", agentConfig.Proxy)
+            logger.Printf("Invalid proxy URL: %s (error: %v)", agentConfig.Proxy, err)
         }
+    } else {
+        logger.Printf("No proxy configured, using direct connection")
     }
+
     headers := util.BrowserHeaders()
     httpClient.Timeout = time.Second * 30
     httpClient.Transport = utlsx.NewUTLSHTTPRoundTripperWithProxy(
         utls.HelloChrome_Auto, new(utls.Config),
         http.DefaultTransport, proxyURL, headers,
     )
+
+    if proxyURL != nil {
+        logger.Printf("HTTP client transport initialized with proxy: %s", proxyURL.String())
+    } else {
+        logger.Printf("HTTP client transport initialized without proxy")
+    }
 }
+
 
 
 func loadDefaultConfigPath() string {
